@@ -20,5 +20,30 @@ This project aims at solving the [Feedback Prize - English Language Learning](ht
 
 ## Requirements
 
+* Miniconda / Anaconda
+* Nvidia GPU with cuda 11.8
+
+* `environment.yaml`
+
+```bash
+$ cat environment.yaml
+# TODO: update this
+```
+
+* `requirements.txt`
+
+```bash
+$ cat requirements.txt
+# TODO: update this
+```
+
+Create conda env:
+
+```bash
+$ make create-env
+# or
+$ conda env create -f environment.yml
+```
+
 ## Usage
 

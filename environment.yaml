@@ -1,0 +1,9 @@
+name: dlnlp-final-uceezl8
+channels:
+  - defaults
+dependencies:
+  - python=3.9
+  - black                               # formatter
+  - pip                                 # install packages
+  - pip:
+    - -r requirements.txt
