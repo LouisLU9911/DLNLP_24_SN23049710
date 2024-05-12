@@ -6,6 +6,8 @@ import logging
 import os
 import sys
 
+from A.logger import set_log_level
+
 
 def setup_parse():
     import argparse
@@ -46,7 +48,7 @@ def print_info():
 def main():
     try:
         args = setup_parse()
-        # set_log_level(args.loglevel)
+        set_log_level(args.loglevel)
 
         if args.action == "info":
             print_info()
