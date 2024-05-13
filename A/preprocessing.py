@@ -44,7 +44,15 @@ def get_max_length_from_texts(
     else:
         max_len = percentile_90
 
-    logger.info(f"Choose {type}(tokens) for max_len: {max_len}")
+    if max_len > tokenizer.model_max_length:
+        logger.warn(
+            "the max_len you want is longer than the specified "
+            f"maximum sequence length for this model ({max_len} > {tokenizer.model_max_length}). "
+            f"Choose to use model_max_length: {tokenizer.model_max_length}"
+        )
+        max_len = tokenizer.model_max_length
+    else:
+        logger.info(f"Choose {type}(tokens) for max_len: {max_len}")
     return max_len
 
 
@@ -75,6 +83,9 @@ def data_preprocessing(workspace: Path, cfg: dict):
 
     if isinstance(max_len, str):
         max_len = get_max_length_from_texts(X.tolist(), tokenizer, type=max_len)
+
+    # rewrite final max_length to cfg
+    tokenizer_cfg["max_length"] = max_len
 
     tokens = tokenizer(
         X.tolist(),

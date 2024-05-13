@@ -54,24 +54,24 @@ def main():
         A_CONFIG_PATH = CWD / "A" / CONFIG_FILENAME
         with open(A_CONFIG_PATH, "r") as f:
             cfg = json.load(f)
-            logger.debug(f"Read task A's config from {A_CONFIG_PATH} successfully!")
+            logger.info(f"Read task A's config from {A_CONFIG_PATH} successfully!")
         X_train, X_val, X_test, y_train, y_val, y_test = data_preprocessing(CWD, cfg)
         logger.debug(f"{X_train.shape=}")
         logger.debug(f"{X_val.shape=}")
         logger.debug(f"{X_test.shape=}")
+        logger.debug(f'max_length of tokenizer: {cfg["tokenizer"]["max_length"]}')
         # ======================================================================================================================
-        # Task A
-        # TODO: model A
+        # # only one task: Task A
         # model_A = A(args...)                 # Build model object.
         # acc_A_train = model_A.train(args...) # Train model based on the training set (you should fine-tune your model based on validation set.)
         # acc_A_test = model_A.test(args...)   # Test model based on the test set.
-        # Clean up memory/GPU etc...             # Some code to free memory if necessary.
+        # # Clean up memory/GPU etc...             # Some code to free memory if necessary.
 
-        # ======================================================================================================================
-        # TODO: Print out your results with following format:
-        # print("TA:{},{};TB:{},{};".format(acc_A_train, acc_A_test, acc_B_train, acc_B_test))
+        # # ======================================================================================================================
+        # # Print out your results with following format:
+        # logger.info("TA:{},{};".format(acc_A_train, acc_A_test))
     except Exception as e:
-        print(e)
+        logger.error(e)
         sys.exit(1)
 
 
