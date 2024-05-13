@@ -1,1 +1,7 @@
-{}
+{
+    "tokenizer": {
+        "model": "google-bert/bert-base-cased",
+        "padding": "True",
+        "max_length": "max"
+    }
+}

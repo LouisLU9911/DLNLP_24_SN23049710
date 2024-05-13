@@ -12,3 +12,6 @@ DATASET_TRAIN_CSV = "train.csv"
 TEST_SIZE = 0.2
 # val / (test + val) = 0.5
 VAL_SIZE = 0.5
+
+# Tokenizer
+DEFAULT_TOKENIZER = "google-bert/bert-base-cased"
