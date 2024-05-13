@@ -20,6 +20,7 @@ def get_max_length_from_texts(
     tokenizer,
     type,
 ):
+    """Get max_len according to the texts from the dataset."""
     import numpy as np
 
     # Tokenize each text and calculate length
@@ -43,11 +44,13 @@ def get_max_length_from_texts(
     else:
         max_len = percentile_90
 
-    logger.info(f"Choose {type} for max_len: {max_len}")
+    logger.info(f"Choose {type}(tokens) for max_len: {max_len}")
     return max_len
 
 
 def data_preprocessing(workspace: Path, cfg: dict):
+    """Read pandas DataFrame from csv file and split it into train, val, and test datasets.
+    Tokenize all texts."""
     import pandas as pd
     from sklearn.model_selection import train_test_split
     from transformers import AutoTokenizer
@@ -56,13 +59,13 @@ def data_preprocessing(workspace: Path, cfg: dict):
 
     abs_train_csv_path = workspace / DATASET_DIR / DATASET_TRAIN_CSV
     df = pd.read_csv(abs_train_csv_path)
-    logger.debug(f"Read DataFrame from {abs_train_csv_path} successfully!")
+    logger.info(f"Read DataFrame from {abs_train_csv_path} successfully!")
     X = df["full_text"].values
     y = df.iloc[:, 2:8].values
 
     tokenizer_cfg = cfg.get("tokenizer", {})
     pretrained_tokenizer = tokenizer_cfg.get("model", DEFAULT_TOKENIZER)
-    logger.debug(f"Loading tokenizer from {pretrained_tokenizer}")
+    logger.info(f"Loading tokenizer from {pretrained_tokenizer}")
     enable_padding = tokenizer_cfg.get("padding", "TRUE").upper() == "TRUE"
     logger.debug(f"{enable_padding=}")
     enable_truncation = tokenizer_cfg.get("truncation", "TRUE").upper() == "TRUE"
