@@ -1,2 +1,13 @@
+--extra-index-url https://download.pytorch.org/whl/cu118
+torch
 # download the dataset from kaggle
 kaggle
+# preprocess
+datasets
+# metrics
+evaluate
+# fine-tuning and build custom models
+transformers[torch]==4.39.3
+# download and upload pretrained models
+huggingface_hub
+ipykernel
