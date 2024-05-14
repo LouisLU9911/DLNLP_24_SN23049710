@@ -95,10 +95,7 @@ def data_preprocessing(workspace: Path, cfg: dict):
         max_length=max_len,
     )
 
-    if pretrained_tokenizer == "google-bert/bert-base-cased":
-        X_tokens = tokens["input_ids"]
-    else:
-        X_tokens = tokens
+    X_tokens = tokens["input_ids"]
 
     # Split data into train and remaining
     X_train, X_remaining, y_train, y_remaining = train_test_split(

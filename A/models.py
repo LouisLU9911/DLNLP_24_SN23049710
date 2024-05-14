@@ -72,6 +72,7 @@ class ModelA:
         else:
             self.model = PretrainedModel(backbone, OUTPUT_DIM).to(self.device)
         self.training_losses = []
+        self.mcrmses = []
         self.task_name = cfg.get("task_name", "default_task")
         self.results_dir: Path = workspace / "A" / "results" / self.task_name
         os.makedirs(self.results_dir, exist_ok=True)
@@ -115,9 +116,9 @@ class ModelA:
             avg_epoch_loss = epoch_loss / len(train_loader)
             self.training_losses.append(avg_epoch_loss)
             logger.info(f"Epoch {epoch + 1}/{epochs}, MSELoss: {avg_epoch_loss}")
-            if epoch % 3 == 0:
-                val_mcrmse = self.evaluate(val_loader)
-                logger.info(f"Validation MCRMSE after epoch {epoch + 1}: {val_mcrmse}")
+            val_mcrmse = self.evaluate(val_loader)
+            self.mcrmses.append(val_mcrmse)
+            logger.info(f"Validation MCRMSE after epoch {epoch + 1}: {val_mcrmse}")
 
         return self.evaluate(val_loader)
 
@@ -155,6 +156,17 @@ class ModelA:
         df.to_csv(csv_path, index=False)
         logger.info(f"Training losses saved to {csv_path}")
 
+    def save_mcrmses(self):
+        csv_path = self.results_dir / f"{self.task_name}_mcrmse.csv"
+        df = pd.DataFrame(
+            {
+                "Epoch": range(1, len(self.mcrmses) + 1),
+                "MCRMSE": self.mcrmses,
+            }
+        )
+        df.to_csv(csv_path, index=False)
+        logger.info(f"MCRMSE saved to {csv_path}")
+
     def plot_training_curve(self):
         plt.figure(figsize=(10, 6))
         plt.plot(self.training_losses, label="Training Loss")
@@ -175,6 +187,7 @@ class ModelA:
 
     def save(self):
         self.save_training_losses()
+        self.save_mcrmses()
         self.plot_training_curve()
         self.save_model()
 
