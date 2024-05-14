@@ -1,16 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """Models"""
+import os
+from pathlib import Path
 
 from .constants import (
     DEFAULT_TOKENIZER,
     DEFAULT_BACKBONE,
     DEFAULT_BATCH_SIZE,
+    DEFAULT_EPOCH,
+    DEFAULT_LR,
     DEFAULT_LSTM_HIDDEN_DIM,
     OUTPUT_DIM,
 )
 from .logger import logger
 
+import matplotlib.pyplot as plt
+import pandas as pd
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
@@ -28,7 +34,7 @@ def get_embeddings(cfg):
 
 
 class ModelA:
-    def __init__(self, cfg) -> None:
+    def __init__(self, workspace: Path, cfg: dict) -> None:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.embedding = get_embeddings(cfg).to(self.device)
         model_cfg = cfg.get("model", {})
@@ -44,6 +50,10 @@ class ModelA:
             )
         else:
             self.model = AutoModel.from_pretrained(backbone).to(self.device)
+        self.training_losses = []
+        self.task_name = cfg.get("task_name", "default_task")
+        self.results_dir: Path = workspace / "A" / "results" / self.task_name
+        os.makedirs(self.results_dir, exist_ok=True)
 
     def train(
         self,
@@ -51,9 +61,9 @@ class ModelA:
         y_train,
         X_val,
         y_val,
-        learning_rate=9e-6,
+        learning_rate=DEFAULT_LR,
         batch_size=DEFAULT_BATCH_SIZE,
-        epochs=3,
+        epochs=DEFAULT_EPOCH,
     ) -> float:
         """Train the model and return the MCRMSE in the val set."""
         criterion = nn.MSELoss()
@@ -81,9 +91,9 @@ class ModelA:
                 loss.backward()
                 optimizer.step()
                 epoch_loss += loss.item()
-            logger.info(
-                f"Epoch {epoch + 1}/{epochs}, MSELoss: {epoch_loss / len(train_loader)}"
-            )
+            avg_epoch_loss = epoch_loss / len(train_loader)
+            self.training_losses.append(avg_epoch_loss)
+            logger.info(f"Epoch {epoch + 1}/{epochs}, MSELoss: {avg_epoch_loss}")
             if epoch % 3 == 0:
                 val_mcrmse = self.evaluate(val_loader)
                 logger.info(f"Validation MCRMSE after epoch {epoch + 1}: {val_mcrmse}")
@@ -113,10 +123,39 @@ class ModelA:
         test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
         return self.evaluate(test_loader)
 
-    def save(self, path: str):
+    def save_training_losses(self):
+        csv_path = self.results_dir / f"{self.task_name}_training_losses.csv"
+        df = pd.DataFrame(
+            {
+                "Epoch": range(1, len(self.training_losses) + 1),
+                "MSE Loss": self.training_losses,
+            }
+        )
+        df.to_csv(csv_path, index=False)
+        logger.info(f"Training losses saved to {csv_path}")
+
+    def plot_training_curve(self):
+        plt.figure(figsize=(10, 6))
+        plt.plot(self.training_losses, label="Training Loss")
+        plt.xlabel("Epochs")
+        plt.ylabel("MSE Loss")
+        plt.title("Training Loss Curve")
+        plt.legend()
+        plt.grid(True)
+        plot_path = self.results_dir / f"{self.task_name}_training_curve.png"
+        plt.savefig(plot_path)
+        logger.info(f"Training curve saved to {plot_path}")
+
+    def save_model(self):
         """Save model to path."""
-        torch.save(self.model.state_dict(), path)
-        logger.info(f"Model saved to {path}")
+        model_path = self.results_dir / f"{self.task_name}_model.pth"
+        torch.save(self.model.state_dict(), model_path)
+        logger.info(f"Model saved to {model_path}")
+
+    def save(self):
+        self.save_training_losses()
+        self.plot_training_curve()
+        self.save_model()
 
     def clean(self):
         """Clean up memory/GPU etc..."""

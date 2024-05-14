@@ -110,4 +110,12 @@ def data_preprocessing(workspace: Path, cfg: dict):
         X_remaining, y_remaining, test_size=VAL_SIZE, random_state=random_state
     )
 
+    # log all
+    logger.debug(f"{X_train.shape=}")
+    logger.debug(f"{X_val.shape=}")
+    logger.debug(f"{X_test.shape=}")
+    logger.debug(f"{y_train.shape=}")
+    logger.debug(f"{y_val.shape=}")
+    logger.debug(f"{y_test.shape=}")
+    logger.debug(f'max_length of tokenizer: {cfg["tokenizer"]["max_length"]}')
     return X_train, X_val, X_test, y_train, y_val, y_test

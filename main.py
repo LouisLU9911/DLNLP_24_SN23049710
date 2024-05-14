@@ -70,18 +70,11 @@ def main():
             cfg = json.load(f)
             logger.info(f"Read task A's config from {A_CONFIG_PATH} successfully!")
         X_train, X_val, X_test, y_train, y_val, y_test = data_preprocessing(CWD, cfg)
-        logger.debug(f"{X_train.shape=}")
-        logger.debug(f"{X_val.shape=}")
-        logger.debug(f"{X_test.shape=}")
-        logger.debug(f"{y_train.shape=}")
-        logger.debug(f"{y_val.shape=}")
-        logger.debug(f"{y_test.shape=}")
-        logger.debug(f'max_length of tokenizer: {cfg["tokenizer"]["max_length"]}')
 
         # ======================================================================================================================
         # only one task: Task A
         # build model object.
-        model_A = ModelA(cfg)
+        model_A = ModelA(CWD, cfg)
         batch_size = cfg.get("batch_size", DEFAULT_BATCH_SIZE)
         epoch = cfg.get("epoch", DEFAULT_EPOCH)
         lr = cfg.get("lr", DEFAULT_LR)
@@ -97,11 +90,11 @@ def main():
             batch_size=batch_size,
             epochs=epoch,
         )  # Train model based on the training set (you should fine-tune your model based on validation set.)
+        # Save model
+        model_A.save()
         mcrmse_A_test = model_A.test(
             X_test=X_test, y_test=y_test, batch_size=batch_size
         )  # Test model based on the test set.
-        # Save model
-        # model_A.save()
         # Clean up memory/GPU etc...
         model_A.clean()
 

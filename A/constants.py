@@ -9,6 +9,9 @@ CONFIG_FILENAME = "baseline.json"
 # default values
 DEFAULT_SEED = 2024
 
+# results
+DEFAULT_RESULT_DIR = "results"
+
 # dataset
 DATASET_DIR = "Datasets"
 DATASET_TRAIN_CSV = "train.csv"
