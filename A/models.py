@@ -27,13 +27,10 @@ def get_embeddings(cfg):
     return embeddings
 
 
-def MCRMSE():
-    pass
-
-
 class ModelA:
     def __init__(self, cfg) -> None:
-        self.embedding = get_embeddings(cfg)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.embedding = get_embeddings(cfg).to(self.device)
         model_cfg = cfg.get("model", {})
         backbone = model_cfg.get("backbone", DEFAULT_BACKBONE)
         logger.info(
@@ -42,9 +39,11 @@ class ModelA:
         )
         if backbone == "LSTM":
             hidden_dim = model_cfg.get("hidden_dim", DEFAULT_LSTM_HIDDEN_DIM)
-            self.model = LSTMModel(self.embedding, hidden_dim, OUTPUT_DIM)
+            self.model = LSTMModel(self.embedding, hidden_dim, OUTPUT_DIM).to(
+                self.device
+            )
         else:
-            self.model = AutoModel.from_pretrained(backbone)
+            self.model = AutoModel.from_pretrained(backbone).to(self.device)
 
     def train(
         self,
@@ -57,7 +56,6 @@ class ModelA:
         epochs=3,
     ) -> float:
         """Train the model and return the MCRMSE in the val set."""
-        self.model.train()
         criterion = nn.MSELoss()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
@@ -72,9 +70,11 @@ class ModelA:
         logger.info("Training begins...")
         for epoch in range(epochs):
             epoch_loss = 0
+            self.model.train()
             for X_batch, y_batch in tqdm(
                 train_loader, desc=f"Epoch {epoch + 1}/{epochs}"
             ):
+                X_batch, y_batch = X_batch.to(self.device), y_batch.to(self.device)
                 optimizer.zero_grad()
                 outputs = self.model(X_batch)
                 loss = criterion(outputs, y_batch)
@@ -82,46 +82,36 @@ class ModelA:
                 optimizer.step()
                 epoch_loss += loss.item()
             logger.info(
-                f"Epoch {epoch + 1}/{epochs}, Loss: {epoch_loss / len(train_loader)}"
+                f"Epoch {epoch + 1}/{epochs}, MSELoss: {epoch_loss / len(train_loader)}"
             )
-            val_mcrmse = self.mcrmse(val_loader)
-            logger.info(f"Validation MCRMSE after epoch {epoch + 1}: {val_mcrmse}")
+            if epoch % 3 == 0:
+                val_mcrmse = self.evaluate(val_loader)
+                logger.info(f"Validation MCRMSE after epoch {epoch + 1}: {val_mcrmse}")
 
-        return self.mcrmse(val_loader)
-
-    def mcrmse(self, data_loader) -> float:
-        self.model.eval()
-        mse_loss_fn = nn.MSELoss(reduction="none")
-        sum_losses = torch.zeros(OUTPUT_DIM)
-
-        with torch.no_grad():
-            for X_batch, y_batch in tqdm(data_loader, desc="Calculating MCRMSE"):
-                outputs = self.model(X_batch)
-                losses = mse_loss_fn(outputs, y_batch)
-                sum_losses += torch.sum(losses, dim=0)
-            mean_losses = sum_losses / len(data_loader)
-            root_losses = torch.sqrt(mean_losses)
-            mean_root_loss = torch.mean(root_losses).item()
-        return mean_root_loss
+        return self.evaluate(val_loader)
 
     def evaluate(self, data_loader) -> float:
         self.model.eval()
-        criterion = nn.MSELoss()
-        total_loss = 0
+        total_squared_errors = torch.zeros(OUTPUT_DIM).to(self.device)
+        num_samples = 0
 
         with torch.no_grad():
             for X_batch, y_batch in tqdm(data_loader, desc="Evaluating"):
+                X_batch, y_batch = X_batch.to(self.device), y_batch.to(self.device)
                 outputs = self.model(X_batch)
-                loss = criterion(outputs, y_batch)
-                total_loss += loss.item()
-
-        return total_loss / len(data_loader)
+                squared_errors = (outputs - y_batch) ** 2
+                total_squared_errors += torch.sum(squared_errors, dim=0)
+                num_samples += X_batch.size(0)
+        mean_squared_errors = total_squared_errors / num_samples
+        root_mean_squared_errors = torch.sqrt(mean_squared_errors)
+        mcrmse = torch.mean(root_mean_squared_errors).item()
+        return mcrmse
 
     def test(self, X_test, y_test, batch_size=DEFAULT_BATCH_SIZE) -> float:
-        """Test the model and return the MSE."""
+        """Test the model and return the MCRMSE."""
         test_dataset = TensorDataset(X_test, torch.tensor(y_test, dtype=torch.float32))
         test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-        return self.mcrmse(test_loader)
+        return self.evaluate(test_loader)
 
     def save(self, path: str):
         """Save model to path."""

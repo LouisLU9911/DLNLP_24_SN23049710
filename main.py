@@ -9,7 +9,13 @@ from pathlib import Path
 
 
 from A.logger import logger, set_log_level
-from A.constants import CONFIG_FILENAME, CONFIG_DIR, DEFAULT_BATCH_SIZE
+from A.constants import (
+    CONFIG_FILENAME,
+    CONFIG_DIR,
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_EPOCH,
+    DEFAULT_LR,
+)
 from A.models import ModelA
 
 
@@ -77,12 +83,19 @@ def main():
         # build model object.
         model_A = ModelA(cfg)
         batch_size = cfg.get("batch_size", DEFAULT_BATCH_SIZE)
+        epoch = cfg.get("epoch", DEFAULT_EPOCH)
+        lr = cfg.get("lr", DEFAULT_LR)
+        logger.debug(f"{batch_size=}")
+        logger.debug(f"{epoch=}")
+        logger.debug(f"{lr=}")
         mcrmse_A_train = model_A.train(
             X_train=X_train,
             y_train=y_train,
             X_val=X_val,
             y_val=y_val,
+            learning_rate=lr,
             batch_size=batch_size,
+            epochs=epoch,
         )  # Train model based on the training set (you should fine-tune your model based on validation set.)
         mcrmse_A_test = model_A.test(
             X_test=X_test, y_test=y_test, batch_size=batch_size
