@@ -40,17 +40,74 @@ class ModelA:
         else:
             self.model = AutoModel.from_pretrained(backbone)
 
-    def train(self, X_train, y_train, X_val, y_val):
-        pass
+    def train(
+        self,
+        X_train,
+        y_train,
+        X_val,
+        y_val,
+        learning_rate=9e-6,
+        batch_size=2,
+        epochs=3,
+    ) -> float:
+        """Train the model and return the MCRMSE in the val set."""
+        self.model.train()
+        criterion = nn.MSELoss()
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
-    def test(self, X_test, y_test):
-        pass
+        logger.debug("Generating Datasets...")
+        train_dataset = TensorDataset(
+            X_train, torch.tensor(y_train, dtype=torch.float32)
+        )
+        val_dataset = TensorDataset(X_val, torch.tensor(y_val, dtype=torch.float32))
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
-    def save(self):
-        pass
+        logger.info("Training begins...")
+        for epoch in range(epochs):
+            epoch_loss = 0
+            for X_batch, y_batch in train_loader:
+                optimizer.zero_grad()
+                outputs = self.model(X_batch)
+                loss = criterion(outputs, y_batch)
+                loss.backward()
+                optimizer.step()
+                epoch_loss += loss.item()
+            logger.info(
+                f"Epoch {epoch + 1}/{epochs}, Loss: {epoch_loss / len(train_loader)}"
+            )
+
+        return self.evaluate(val_loader)
+
+    def evaluate(self, data_loader) -> float:
+        self.model.eval()
+        criterion = nn.MSELoss()
+        total_loss = 0
+
+        with torch.no_grad():
+            for X_batch, y_batch in data_loader:
+                outputs = self.model(X_batch)
+                loss = criterion(outputs, y_batch)
+                total_loss += loss.item()
+
+        return total_loss / len(data_loader)
+
+    def test(self, X_test, y_test, batch_size=2) -> float:
+        """Test the model and return the MSE."""
+        test_dataset = TensorDataset(X_test, torch.tensor(y_test, dtype=torch.float32))
+        test_loader = DataLoader(test_dataset, batch_size=2, shuffle=False)
+        return self.evaluate(test_loader)
+
+    def save(self, path: str):
+        """Save model to path."""
+        torch.save(self.model.state_dict(), path)
+        logger.info(f"Model saved to {path}")
 
     def clean(self):
-        pass
+        """Clean up memory/GPU etc..."""
+        del self.model
+        torch.cuda.empty_cache()
+        logger.info("Cleaned up model and GPU memory")
 
 
 class LSTMModel(nn.Module):
@@ -73,7 +130,13 @@ class PretrainedModel(nn.Module):
     def __init__(self, backbone, output_dim):
         super(PretrainedModel, self).__init__()
         self.backbone = AutoModel.from_pretrained(backbone)
-        pass
+        self.linear = nn.Linear(self.backbone.config.hidden_size, output_dim)
+        logger.debug(self.backbone)
+        logger.debug(self.linear)
 
-    def forward(self, x):
-        pass
+    def forward(self, X):
+        outputs = self.backbone(X)
+        hidden_state = outputs.last_hidden_state
+        return self.linear(
+            hidden_state[:, 0, :]
+        )  # Use the hidden state of the [CLS] token

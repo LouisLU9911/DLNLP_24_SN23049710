@@ -67,6 +67,9 @@ def main():
         logger.debug(f"{X_train.shape=}")
         logger.debug(f"{X_val.shape=}")
         logger.debug(f"{X_test.shape=}")
+        logger.debug(f"{y_train.shape=}")
+        logger.debug(f"{y_val.shape=}")
+        logger.debug(f"{y_test.shape=}")
         logger.debug(f'max_length of tokenizer: {cfg["tokenizer"]["max_length"]}')
 
         # ======================================================================================================================
@@ -74,11 +77,13 @@ def main():
         # build model object.
         model_A = ModelA(cfg)
         acc_A_train = model_A.train(
-            X_train, y_train, X_val, y_val
+            X_train=X_train, y_train=y_train, X_val=X_val, y_val=y_val, batch_size=15
         )  # Train model based on the training set (you should fine-tune your model based on validation set.)
-        acc_A_test = model_A.test(X_test, y_test)  # Test model based on the test set.
+        acc_A_test = model_A.test(
+            X_test=X_test, y_test=y_test, batch_size=15
+        )  # Test model based on the test set.
         # Save model
-        model_A.save()
+        # model_A.save()
         # Clean up memory/GPU etc...
         model_A.clean()
 
