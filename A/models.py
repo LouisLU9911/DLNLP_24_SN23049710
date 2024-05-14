@@ -70,7 +70,7 @@ class ModelA:
                 self.device
             )
         else:
-            self.model = AutoModel.from_pretrained(backbone).to(self.device)
+            self.model = PretrainedModel(backbone, OUTPUT_DIM).to(self.device)
         self.training_losses = []
         self.task_name = cfg.get("task_name", "default_task")
         self.results_dir: Path = workspace / "A" / "results" / self.task_name
