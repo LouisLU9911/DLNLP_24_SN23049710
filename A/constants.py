@@ -1,5 +1,10 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""Constants"""
+
 # config for task
-CONFIG_FILENAME = "config.json"
+CONFIG_DIR = "configs"
+CONFIG_FILENAME = "baseline.json"
 
 # default values
 DEFAULT_SEED = 2024
@@ -15,3 +20,10 @@ VAL_SIZE = 0.5
 
 # Tokenizer
 DEFAULT_TOKENIZER = "google-bert/bert-base-cased"
+
+# Model
+DEFAULT_BACKBONE = "LSTM"
+OUTPUT_DIM = 6
+
+# LSTM
+DEFAULT_LSTM_HIDDEN_DIM = 512

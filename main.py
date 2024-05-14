@@ -9,7 +9,8 @@ from pathlib import Path
 
 
 from A.logger import logger, set_log_level
-from A.constants import CONFIG_FILENAME
+from A.constants import CONFIG_FILENAME, CONFIG_DIR
+from A.models import ModelA
 
 
 CWD = Path(os.getcwd())
@@ -39,6 +40,13 @@ def setup_parse():
         dest="loglevel",
         const=logging.INFO,
     )
+    parser.add_argument(
+        "-c",
+        "--config",
+        help="Config for your model",
+        action="store",
+        default=CONFIG_FILENAME,
+    )
 
     args, _ = parser.parse_known_args()
     return args
@@ -51,7 +59,7 @@ def main():
         args = setup_parse()
         set_log_level(args.loglevel)
 
-        A_CONFIG_PATH = CWD / "A" / CONFIG_FILENAME
+        A_CONFIG_PATH = CWD / "A" / CONFIG_DIR / args.config
         with open(A_CONFIG_PATH, "r") as f:
             cfg = json.load(f)
             logger.info(f"Read task A's config from {A_CONFIG_PATH} successfully!")
@@ -60,16 +68,23 @@ def main():
         logger.debug(f"{X_val.shape=}")
         logger.debug(f"{X_test.shape=}")
         logger.debug(f'max_length of tokenizer: {cfg["tokenizer"]["max_length"]}')
-        # ======================================================================================================================
-        # # only one task: Task A
-        # model_A = A(args...)                 # Build model object.
-        # acc_A_train = model_A.train(args...) # Train model based on the training set (you should fine-tune your model based on validation set.)
-        # acc_A_test = model_A.test(args...)   # Test model based on the test set.
-        # # Clean up memory/GPU etc...             # Some code to free memory if necessary.
 
-        # # ======================================================================================================================
-        # # Print out your results with following format:
-        # logger.info("TA:{},{};".format(acc_A_train, acc_A_test))
+        # ======================================================================================================================
+        # only one task: Task A
+        # build model object.
+        model_A = ModelA(cfg)
+        acc_A_train = model_A.train(
+            X_train, y_train, X_val, y_val
+        )  # Train model based on the training set (you should fine-tune your model based on validation set.)
+        acc_A_test = model_A.test(X_test, y_test)  # Test model based on the test set.
+        # Save model
+        model_A.save()
+        # Clean up memory/GPU etc...
+        model_A.clean()
+
+        # ======================================================================================================================
+        # Print out your results with following format:
+        logger.info("TA:{},{};".format(acc_A_train, acc_A_test))
     except Exception as e:
         logger.error(e)
         sys.exit(1)

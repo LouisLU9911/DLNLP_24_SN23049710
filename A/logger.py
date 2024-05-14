@@ -28,7 +28,7 @@ class ColorfulFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-logger = logging.getLogger("AMLS")
+logger = logging.getLogger("DLNLP")
 
 ch = logging.StreamHandler()
 ch.setLevel(logging.WARNING)

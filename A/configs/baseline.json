@@ -3,5 +3,9 @@
         "model": "google-bert/bert-base-cased",
         "padding": "True",
         "max_length": "max"
+    },
+    "model": {
+        "backbone": "LSTM",
+        "hidden_dim": 512
     }
 }
