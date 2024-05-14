@@ -2,11 +2,13 @@
 # -*- coding: utf-8 -*-
 """Models"""
 import os
+import random
 from pathlib import Path
 
 from .constants import (
     DEFAULT_TOKENIZER,
     DEFAULT_BACKBONE,
+    DEFAULT_SEED,
     DEFAULT_BATCH_SIZE,
     DEFAULT_EPOCH,
     DEFAULT_LR,
@@ -16,12 +18,21 @@ from .constants import (
 from .logger import logger
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from transformers import AutoModel
 from tqdm import tqdm
+
+
+def set_seed(seed: int):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
 
 def get_embeddings(cfg):
@@ -34,7 +45,10 @@ def get_embeddings(cfg):
 
 
 class ModelA:
-    def __init__(self, workspace: Path, cfg: dict) -> None:
+    def __init__(self, workspace: Path, cfg: dict, seed: int = DEFAULT_SEED) -> None:
+        # Set random seed for reproducibility
+        set_seed(seed)
+
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.embedding = get_embeddings(cfg).to(self.device)
         model_cfg = cfg.get("model", {})
