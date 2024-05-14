@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 from A.logger import logger, set_log_level
-from A.constants import CONFIG_FILENAME, CONFIG_DIR
+from A.constants import CONFIG_FILENAME, CONFIG_DIR, DEFAULT_BATCH_SIZE
 from A.models import ModelA
 
 
@@ -76,11 +76,16 @@ def main():
         # only one task: Task A
         # build model object.
         model_A = ModelA(cfg)
-        acc_A_train = model_A.train(
-            X_train=X_train, y_train=y_train, X_val=X_val, y_val=y_val, batch_size=15
+        batch_size = cfg.get("batch_size", DEFAULT_BATCH_SIZE)
+        mcrmse_A_train = model_A.train(
+            X_train=X_train,
+            y_train=y_train,
+            X_val=X_val,
+            y_val=y_val,
+            batch_size=batch_size,
         )  # Train model based on the training set (you should fine-tune your model based on validation set.)
-        acc_A_test = model_A.test(
-            X_test=X_test, y_test=y_test, batch_size=15
+        mcrmse_A_test = model_A.test(
+            X_test=X_test, y_test=y_test, batch_size=batch_size
         )  # Test model based on the test set.
         # Save model
         # model_A.save()
@@ -89,7 +94,7 @@ def main():
 
         # ======================================================================================================================
         # Print out your results with following format:
-        logger.info("TA:{},{};".format(acc_A_train, acc_A_test))
+        logger.info("TA:{},{};".format(mcrmse_A_train, mcrmse_A_test))
     except Exception as e:
         logger.error(e)
         sys.exit(1)

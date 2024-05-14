@@ -7,5 +7,6 @@
     "model": {
         "backbone": "LSTM",
         "hidden_dim": 512
-    }
+    },
+    "batch_size": 40
 }

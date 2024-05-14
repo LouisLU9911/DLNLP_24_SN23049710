@@ -5,6 +5,7 @@
 from .constants import (
     DEFAULT_TOKENIZER,
     DEFAULT_BACKBONE,
+    DEFAULT_BATCH_SIZE,
     DEFAULT_LSTM_HIDDEN_DIM,
     OUTPUT_DIM,
 )
@@ -14,6 +15,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from transformers import AutoModel
+from tqdm import tqdm
 
 
 def get_embeddings(cfg):
@@ -23,6 +25,10 @@ def get_embeddings(cfg):
     tokenizer = AutoModel.from_pretrained(pretrained_tokenizer)
     embeddings = tokenizer.get_input_embeddings()
     return embeddings
+
+
+def MCRMSE():
+    pass
 
 
 class ModelA:
@@ -47,7 +53,7 @@ class ModelA:
         X_val,
         y_val,
         learning_rate=9e-6,
-        batch_size=2,
+        batch_size=DEFAULT_BATCH_SIZE,
         epochs=3,
     ) -> float:
         """Train the model and return the MCRMSE in the val set."""
@@ -66,7 +72,9 @@ class ModelA:
         logger.info("Training begins...")
         for epoch in range(epochs):
             epoch_loss = 0
-            for X_batch, y_batch in train_loader:
+            for X_batch, y_batch in tqdm(
+                train_loader, desc=f"Epoch {epoch + 1}/{epochs}"
+            ):
                 optimizer.zero_grad()
                 outputs = self.model(X_batch)
                 loss = criterion(outputs, y_batch)
@@ -76,8 +84,25 @@ class ModelA:
             logger.info(
                 f"Epoch {epoch + 1}/{epochs}, Loss: {epoch_loss / len(train_loader)}"
             )
+            val_mcrmse = self.mcrmse(val_loader)
+            logger.info(f"Validation MCRMSE after epoch {epoch + 1}: {val_mcrmse}")
 
-        return self.evaluate(val_loader)
+        return self.mcrmse(val_loader)
+
+    def mcrmse(self, data_loader) -> float:
+        self.model.eval()
+        mse_loss_fn = nn.MSELoss(reduction="none")
+        sum_losses = torch.zeros(OUTPUT_DIM)
+
+        with torch.no_grad():
+            for X_batch, y_batch in tqdm(data_loader, desc="Calculating MCRMSE"):
+                outputs = self.model(X_batch)
+                losses = mse_loss_fn(outputs, y_batch)
+                sum_losses += torch.sum(losses, dim=0)
+            mean_losses = sum_losses / len(data_loader)
+            root_losses = torch.sqrt(mean_losses)
+            mean_root_loss = torch.mean(root_losses).item()
+        return mean_root_loss
 
     def evaluate(self, data_loader) -> float:
         self.model.eval()
@@ -85,18 +110,18 @@ class ModelA:
         total_loss = 0
 
         with torch.no_grad():
-            for X_batch, y_batch in data_loader:
+            for X_batch, y_batch in tqdm(data_loader, desc="Evaluating"):
                 outputs = self.model(X_batch)
                 loss = criterion(outputs, y_batch)
                 total_loss += loss.item()
 
         return total_loss / len(data_loader)
 
-    def test(self, X_test, y_test, batch_size=2) -> float:
+    def test(self, X_test, y_test, batch_size=DEFAULT_BATCH_SIZE) -> float:
         """Test the model and return the MSE."""
         test_dataset = TensorDataset(X_test, torch.tensor(y_test, dtype=torch.float32))
-        test_loader = DataLoader(test_dataset, batch_size=2, shuffle=False)
-        return self.evaluate(test_loader)
+        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+        return self.mcrmse(test_loader)
 
     def save(self, path: str):
         """Save model to path."""
