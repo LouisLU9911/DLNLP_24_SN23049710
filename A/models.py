@@ -49,7 +49,14 @@ class ModelA:
         # Set random seed for reproducibility
         set_seed(seed)
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # Set CUDA device if specified in environment variables
+        cuda_device = os.getenv("CUDA_DEVICE", "0")
+        if torch.cuda.is_available():
+            self.device = torch.device(f"cuda:{cuda_device}")
+            torch.cuda.set_device(self.device)
+        else:
+            self.device = torch.device("cpu")
+
         self.embedding = get_embeddings(cfg).to(self.device)
         model_cfg = cfg.get("model", {})
         backbone = model_cfg.get("backbone", DEFAULT_BACKBONE)
