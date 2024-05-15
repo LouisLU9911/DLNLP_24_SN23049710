@@ -1,0 +1,1 @@
+{"task_name": "electra_base", "tokenizer": {"model": "google/electra-base-discriminator", "padding": "True", "max_length": 512}, "model": {"backbone": "google/electra-base-discriminator", "pooling": "mean"}, "batch_size": 40, "epoch": 30, "lr": 0.0001}
