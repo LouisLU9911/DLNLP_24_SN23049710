@@ -23,9 +23,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
+from torch.optim import AdamW
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
-from transformers import AutoModel, AdamW
+from transformers import AutoModel
 from tqdm import tqdm
 
 
