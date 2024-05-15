@@ -23,7 +23,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
-from transformers import AutoModel
+from transformers import AutoModel, AdamW
 from tqdm import tqdm
 
 
@@ -89,7 +89,7 @@ class ModelA:
     ) -> float:
         """Train the model and return the MCRMSE in the val set."""
         criterion = nn.MSELoss()
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+        optimizer = AdamW(self.model.parameters(), lr=learning_rate)
 
         logger.debug("Generating Datasets...")
         train_dataset = TensorDataset(
