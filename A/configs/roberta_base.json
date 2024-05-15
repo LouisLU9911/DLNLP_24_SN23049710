@@ -7,7 +7,7 @@
     },
     "model": {
         "backbone": "FacebookAI/roberta-base",
-        "pooling": "max"
+        "pooling": "attention"
     },
     "batch_size": 40,
     "epoch": 30,

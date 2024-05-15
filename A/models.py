@@ -213,6 +213,19 @@ class ModelA:
         logger.info("Cleaned up model and GPU memory")
 
 
+class AttentionPooling(nn.Module):
+    def __init__(self, input_dim):
+        super(AttentionPooling, self).__init__()
+        self.attention_weights = nn.Linear(input_dim, 1)
+
+    def forward(self, x):
+        # x: [batch_size, seq_len, input_dim]
+        weights = self.attention_weights(x)  # [batch_size, seq_len, 1]
+        weights = torch.softmax(weights, dim=1)  # [batch_size, seq_len, 1]
+        weighted_sum = torch.sum(weights * x, dim=1)  # [batch_size, input_dim]
+        return weighted_sum
+
+
 class LSTMModel(nn.Module):
     def __init__(self, embeddings, hidden_dim, output_dim, pooling=None):
         super(LSTMModel, self).__init__()
@@ -220,6 +233,8 @@ class LSTMModel(nn.Module):
         self.lstm = nn.LSTM(embeddings.embedding_dim, hidden_dim, batch_first=True)
         self.linear = nn.Linear(hidden_dim, output_dim)
         self.pooling = pooling.lower() if pooling else None
+        if self.pooling == "attention":
+            self.attention_pooling = AttentionPooling(hidden_dim)
         logger.debug(self.embedding)
         logger.debug(self.lstm)
         logger.debug(self.linear)
@@ -234,6 +249,9 @@ class LSTMModel(nn.Module):
         elif self.pooling == "max":
             pooled, _ = torch.max(lstm_out, dim=1)
             return self.linear(pooled)
+        elif self.pooling == "attention":
+            pooled = self.attention_pooling(lstm_out)
+            return self.linear(pooled)
         elif self.pooling is None:
             return self.linear(ht[-1])
         else:
@@ -246,6 +264,8 @@ class PretrainedModel(nn.Module):
         self.backbone = AutoModel.from_pretrained(backbone)
         self.linear = nn.Linear(self.backbone.config.hidden_size, output_dim)
         self.pooling = pooling.lower() if pooling else None
+        if self.pooling == "attention":
+            self.attention_pooling = AttentionPooling(self.backbone.config.hidden_size)
         logger.debug(self.backbone)
         logger.debug(self.linear)
         logger.debug(self.pooling)
@@ -259,6 +279,9 @@ class PretrainedModel(nn.Module):
             return self.linear(pooled)
         elif self.pooling == "max":
             pooled, _ = torch.max(hidden_state, dim=1)
+            return self.linear(pooled)
+        elif self.pooling == "attention":
+            pooled = self.attention_pooling(hidden_state)
             return self.linear(pooled)
         elif self.pooling is None:
             return self.linear(
