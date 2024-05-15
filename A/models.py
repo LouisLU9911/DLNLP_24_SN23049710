@@ -199,6 +199,7 @@ class ModelA:
         logger.info(f"Model saved to {model_path}")
 
     def save(self):
+        self.save_configs()
         self.save_training_losses()
         self.save_mcrmses()
         self.plot_training_curve()

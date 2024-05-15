@@ -100,7 +100,10 @@ def main():
 
         # ======================================================================================================================
         # Print out your results with following format:
-        logger.info("TA:{},{};".format(mcrmse_A_train, mcrmse_A_test))
+        final_result = "TA:{},{};".format(mcrmse_A_train, mcrmse_A_test)
+        with open(model_A.results_dir / "result.txt", "w") as f:
+            f.write(final_result)
+        logger.info(final_result)
     except Exception as e:
         logger.error(e)
         sys.exit(1)
