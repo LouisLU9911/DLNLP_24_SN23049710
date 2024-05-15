@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """Models"""
+import json
 import os
 import random
 from pathlib import Path
+from datetime import datetime
 
 from .constants import (
     DEFAULT_TOKENIZER,
@@ -57,8 +59,9 @@ class ModelA:
         else:
             self.device = torch.device("cpu")
 
-        self.embedding = get_embeddings(cfg).to(self.device)
-        model_cfg = cfg.get("model", {})
+        self.cfg = cfg
+        self.embedding = get_embeddings(self.cfg).to(self.device)
+        model_cfg = self.cfg.get("model", {})
         backbone = model_cfg.get("backbone", DEFAULT_BACKBONE)
         logger.info(
             "=========================================================>"
@@ -73,8 +76,11 @@ class ModelA:
             self.model = PretrainedModel(backbone, OUTPUT_DIM).to(self.device)
         self.training_losses = []
         self.mcrmses = []
-        self.task_name = cfg.get("task_name", "default_task")
-        self.results_dir: Path = workspace / "A" / "results" / self.task_name
+        self.task_name = self.cfg.get("task_name", "default_task")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.results_dir: Path = (
+            workspace / "A" / "results" / f"{self.task_name}_{timestamp}"
+        )
         os.makedirs(self.results_dir, exist_ok=True)
 
     def train(
@@ -166,6 +172,12 @@ class ModelA:
         )
         df.to_csv(csv_path, index=False)
         logger.info(f"MCRMSE saved to {csv_path}")
+
+    def save_configs(self):
+        dst = self.results_dir / f"{self.task_name}.json"
+        with open(dst, "w") as f:
+            json.dump(self.cfg, f)
+        logger.info(f"task config saved to {dst}")
 
     def plot_training_curve(self):
         plt.figure(figsize=(10, 6))
