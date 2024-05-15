@@ -1,0 +1,1 @@
+{"task_name": "baseline", "tokenizer": {"model": "google-bert/bert-base-cased", "padding": "True", "max_length": 512}, "model": {"backbone": "LSTM", "hidden_dim": 512, "pooling": "max"}, "batch_size": 40, "epoch": 60, "lr": 0.0001}
