@@ -6,7 +6,8 @@
         "max_length": "max"
     },
     "model": {
-        "backbone": "google/electra-base-discriminator"
+        "backbone": "google/electra-base-discriminator",
+        "pooling": "max"
     },
     "batch_size": 40,
     "epoch": 30,

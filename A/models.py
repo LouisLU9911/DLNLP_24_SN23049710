@@ -64,17 +64,18 @@ class ModelA:
         self.embedding = get_embeddings(self.cfg).to(self.device)
         model_cfg = self.cfg.get("model", {})
         backbone = model_cfg.get("backbone", DEFAULT_BACKBONE)
+        pooling = model_cfg.get("pooling", None)
         logger.info(
             "=========================================================>"
             f" Build a model using {backbone}..."
         )
         if backbone == "LSTM":
             hidden_dim = model_cfg.get("hidden_dim", DEFAULT_LSTM_HIDDEN_DIM)
-            self.model = LSTMModel(self.embedding, hidden_dim, OUTPUT_DIM).to(
+            self.model = LSTMModel(self.embedding, hidden_dim, OUTPUT_DIM, pooling).to(
                 self.device
             )
         else:
-            self.model = PretrainedModel(backbone, OUTPUT_DIM).to(self.device)
+            self.model = PretrainedModel(backbone, OUTPUT_DIM, pooling).to(self.device)
         self.training_losses = []
         self.mcrmses = []
         self.task_name = self.cfg.get("task_name", "default_task")
@@ -213,11 +214,12 @@ class ModelA:
 
 
 class LSTMModel(nn.Module):
-    def __init__(self, embeddings, hidden_dim, output_dim):
+    def __init__(self, embeddings, hidden_dim, output_dim, pooling=None):
         super(LSTMModel, self).__init__()
         self.embedding = embeddings
         self.lstm = nn.LSTM(embeddings.embedding_dim, hidden_dim, batch_first=True)
         self.linear = nn.Linear(hidden_dim, output_dim)
+        self.pooling = pooling.lower() if pooling else None
         logger.debug(self.embedding)
         logger.debug(self.lstm)
         logger.debug(self.linear)
@@ -225,20 +227,42 @@ class LSTMModel(nn.Module):
     def forward(self, x):
         x = self.embedding(x)
         lstm_out, (ht, ct) = self.lstm(x)
-        return self.linear(ht[-1])
+
+        if self.pooling == "mean":
+            pooled = torch.mean(lstm_out, dim=1)
+            return self.linear(pooled)
+        elif self.pooling == "max":
+            pooled, _ = torch.max(lstm_out, dim=1)
+            return self.linear(pooled)
+        elif self.pooling is None:
+            return self.linear(ht[-1])
+        else:
+            raise ValueError(f"Unsupported pooling type: {self.pooling}")
 
 
 class PretrainedModel(nn.Module):
-    def __init__(self, backbone, output_dim):
+    def __init__(self, backbone, output_dim, pooling=None):
         super(PretrainedModel, self).__init__()
         self.backbone = AutoModel.from_pretrained(backbone)
         self.linear = nn.Linear(self.backbone.config.hidden_size, output_dim)
+        self.pooling = pooling.lower() if pooling else None
         logger.debug(self.backbone)
         logger.debug(self.linear)
+        logger.debug(self.pooling)
 
     def forward(self, X):
         outputs = self.backbone(X)
         hidden_state = outputs.last_hidden_state
-        return self.linear(
-            hidden_state[:, 0, :]
-        )  # Use the hidden state of the [CLS] token
+
+        if self.pooling == "mean":
+            pooled = torch.mean(hidden_state, dim=1)
+            return self.linear(pooled)
+        elif self.pooling == "max":
+            pooled, _ = torch.max(hidden_state, dim=1)
+            return self.linear(pooled)
+        elif self.pooling is None:
+            return self.linear(
+                hidden_state[:, 0, :]
+            )  # Use the hidden state of the [CLS] token
+        else:
+            raise ValueError(f"Unsupported pooling type: {self.pooling}")
