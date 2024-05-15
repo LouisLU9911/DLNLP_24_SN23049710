@@ -8,7 +8,7 @@
     "model": {
         "backbone": "LSTM",
         "hidden_dim": 512,
-        "pooling": "max"
+        "pooling": "mean"
     },
     "batch_size": 40,
     "epoch": 60,
