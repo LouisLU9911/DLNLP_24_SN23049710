@@ -7,7 +7,7 @@
     },
     "model": {
         "backbone": "google-bert/bert-base-cased",
-        "pooling": "max"
+        "pooling": "attention"
     },
     "batch_size": 40,
     "epoch": 30,
