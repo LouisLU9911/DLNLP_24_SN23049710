@@ -6,7 +6,8 @@
         "max_length": "max"
     },
     "model": {
-        "backbone": "google-bert/bert-base-cased"
+        "backbone": "google-bert/bert-base-cased",
+        "pooling": "mean"
     },
     "batch_size": 40,
     "epoch": 30,
