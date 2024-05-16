@@ -15,6 +15,8 @@ from .constants import (
     DEFAULT_EPOCH,
     DEFAULT_LR,
     DEFAULT_LSTM_HIDDEN_DIM,
+    DEFAULT_LSTM_NUM_LAYERS,
+    DEFAULT_PATIENCE,
     OUTPUT_DIM,
 )
 from .logger import logger
@@ -47,6 +49,53 @@ def get_embeddings(cfg):
     return embeddings
 
 
+class EarlyStopping:
+    def __init__(
+        self,
+        patience=DEFAULT_PATIENCE,
+        verbose=False,
+        delta=0,
+        path="checkpoint.pth",
+        trace_func=print,
+    ):
+        self.patience = patience
+        self.verbose = verbose
+        self.counter = 0
+        self.best_score = None
+        self.early_stop = False
+        self.val_loss_min = np.Inf
+        self.delta = delta
+        self.path = path
+        self.trace_func = trace_func
+
+    def __call__(self, val_loss, model):
+        score = -val_loss
+
+        if self.best_score is None:
+            self.best_score = score
+            self.save_checkpoint(val_loss, model)
+        elif score < self.best_score + self.delta:
+            self.counter += 1
+            self.trace_func(
+                f"EarlyStopping counter: {self.counter} out of {self.patience}"
+            )
+            if self.counter >= self.patience:
+                self.early_stop = True
+        else:
+            self.best_score = score
+            self.save_checkpoint(val_loss, model)
+            self.counter = 0
+
+    def save_checkpoint(self, val_loss, model):
+        """Saves model when validation loss decrease."""
+        if self.verbose:
+            self.trace_func(
+                f"Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ..."
+            )
+        torch.save(model.state_dict(), self.path)
+        self.val_loss_min = val_loss
+
+
 class ModelA:
     def __init__(self, workspace: Path, cfg: dict, seed: int = DEFAULT_SEED) -> None:
         # Set random seed for reproducibility
@@ -71,9 +120,10 @@ class ModelA:
         )
         if backbone == "LSTM":
             hidden_dim = model_cfg.get("hidden_dim", DEFAULT_LSTM_HIDDEN_DIM)
-            self.model = LSTMModel(self.embedding, hidden_dim, OUTPUT_DIM, pooling).to(
-                self.device
-            )
+            num_layers = model_cfg.get("num_layers", DEFAULT_LSTM_NUM_LAYERS)
+            self.model = LSTMModel(
+                self.embedding, hidden_dim, OUTPUT_DIM, pooling, num_layers
+            ).to(self.device)
         else:
             self.model = PretrainedModel(backbone, OUTPUT_DIM, pooling).to(self.device)
         self.training_losses = []
@@ -83,6 +133,7 @@ class ModelA:
         self.results_dir: Path = (
             workspace / "A" / "results" / f"{self.task_name}_{timestamp}"
         )
+        self.checkpoint_path = self.results_dir / "checkpoint.pth"
         os.makedirs(self.results_dir, exist_ok=True)
 
     def train(
@@ -94,10 +145,14 @@ class ModelA:
         learning_rate=DEFAULT_LR,
         batch_size=DEFAULT_BATCH_SIZE,
         epochs=DEFAULT_EPOCH,
+        patience=DEFAULT_PATIENCE,
     ) -> float:
         """Train the model and return the MCRMSE in the val set."""
         criterion = nn.MSELoss()
         optimizer = AdamW(self.model.parameters(), lr=learning_rate)
+        early_stopping = EarlyStopping(
+            patience=patience, verbose=True, path=self.checkpoint_path
+        )
 
         logger.debug("Generating Datasets...")
         train_dataset = TensorDataset(
@@ -127,6 +182,15 @@ class ModelA:
             val_mcrmse = self.evaluate(val_loader)
             self.mcrmses.append(val_mcrmse)
             logger.info(f"Validation MCRMSE after epoch {epoch + 1}: {val_mcrmse}")
+
+            # Early stopping check
+            early_stopping(val_mcrmse, self.model)
+            if early_stopping.early_stop:
+                logger.info("Early stopping triggered")
+                break
+
+        # Load the best model
+        self.model.load_state_dict(torch.load(self.checkpoint_path))
 
         return self.evaluate(val_loader)
 
@@ -227,12 +291,18 @@ class AttentionPooling(nn.Module):
 
 
 class LSTMModel(nn.Module):
-    def __init__(self, embeddings, hidden_dim, output_dim, pooling=None):
+    def __init__(self, embeddings, hidden_dim, output_dim, pooling=None, num_layers=1):
         super(LSTMModel, self).__init__()
         self.embedding = embeddings
-        self.lstm = nn.LSTM(embeddings.embedding_dim, hidden_dim, batch_first=True)
+        self.lstm = nn.LSTM(
+            embeddings.embedding_dim,
+            hidden_dim,
+            num_layers=num_layers,
+            batch_first=True,
+        )
         self.linear = nn.Linear(hidden_dim, output_dim)
         self.pooling = pooling.lower() if pooling else None
+        self.num_layers = num_layers
         if self.pooling == "attention":
             self.attention_pooling = AttentionPooling(hidden_dim)
         logger.debug(self.embedding)
@@ -241,7 +311,9 @@ class LSTMModel(nn.Module):
 
     def forward(self, x):
         x = self.embedding(x)
-        lstm_out, (ht, ct) = self.lstm(x)
+        h0 = torch.zeros(self.num_layers, x.size(0), self.lstm.hidden_size).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.lstm.hidden_size).to(x.device)
+        lstm_out, (ht, ct) = self.lstm(x, (h0, c0))
 
         if self.pooling == "mean":
             pooled = torch.mean(lstm_out, dim=1)

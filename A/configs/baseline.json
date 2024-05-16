@@ -8,9 +8,9 @@
     "model": {
         "backbone": "LSTM",
         "hidden_dim": 512,
-        "pooling": "attention"
+        "num_layers": 1
     },
     "batch_size": 40,
     "epoch": 60,
-    "lr": 1e-4
+    "lr": 1e-3
 }
