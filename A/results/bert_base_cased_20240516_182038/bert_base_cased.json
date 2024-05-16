@@ -1,0 +1,1 @@
+{"task_name": "bert_base_cased", "tokenizer": {"model": "google-bert/bert-base-cased", "padding": "True", "max_length": 512}, "model": {"backbone": "google-bert/bert-base-cased"}, "batch_size": 40, "epoch": 30, "lr": 1e-05}
