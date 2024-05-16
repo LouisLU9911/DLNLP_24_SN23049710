@@ -6,10 +6,9 @@
         "max_length": "max"
     },
     "model": {
-        "backbone": "FacebookAI/roberta-base",
-        "pooling": "attention"
+        "backbone": "FacebookAI/roberta-base"
     },
     "batch_size": 40,
     "epoch": 30,
-    "lr": 1e-4
+    "lr": 1e-3
 }
