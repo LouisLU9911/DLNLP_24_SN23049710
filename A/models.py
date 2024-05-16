@@ -139,8 +139,10 @@ class ModelA:
     def train(
         self,
         X_train,
-        y_train,
+        train_masks,
         X_val,
+        val_masks,
+        y_train,
         y_val,
         learning_rate=DEFAULT_LR,
         batch_size=DEFAULT_BATCH_SIZE,
@@ -156,9 +158,11 @@ class ModelA:
 
         logger.debug("Generating Datasets...")
         train_dataset = TensorDataset(
-            X_train, torch.tensor(y_train, dtype=torch.float32)
+            X_train, train_masks, torch.tensor(y_train, dtype=torch.float32)
         )
-        val_dataset = TensorDataset(X_val, torch.tensor(y_val, dtype=torch.float32))
+        val_dataset = TensorDataset(
+            X_val, val_masks, torch.tensor(y_val, dtype=torch.float32)
+        )
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
@@ -166,12 +170,16 @@ class ModelA:
         for epoch in range(epochs):
             epoch_loss = 0
             self.model.train()
-            for X_batch, y_batch in tqdm(
+            for X_batch, mask_batch, y_batch in tqdm(
                 train_loader, desc=f"Epoch {epoch + 1}/{epochs}"
             ):
-                X_batch, y_batch = X_batch.to(self.device), y_batch.to(self.device)
+                X_batch, mask_batch, y_batch = (
+                    X_batch.to(self.device),
+                    mask_batch.to(self.device),
+                    y_batch.to(self.device),
+                )
                 optimizer.zero_grad()
-                outputs = self.model(X_batch)
+                outputs = self.model(X_batch, attention_mask=mask_batch)
                 loss = criterion(outputs, y_batch)
                 loss.backward()
                 optimizer.step()
@@ -200,9 +208,13 @@ class ModelA:
         num_samples = 0
 
         with torch.no_grad():
-            for X_batch, y_batch in tqdm(data_loader, desc="Evaluating"):
-                X_batch, y_batch = X_batch.to(self.device), y_batch.to(self.device)
-                outputs = self.model(X_batch)
+            for X_batch, mask_batch, y_batch in tqdm(data_loader, desc="Evaluating"):
+                X_batch, mask_batch, y_batch = (
+                    X_batch.to(self.device),
+                    mask_batch.to(self.device),
+                    y_batch.to(self.device),
+                )
+                outputs = self.model(X_batch, attention_mask=mask_batch)
                 squared_errors = (outputs - y_batch) ** 2
                 total_squared_errors += torch.sum(squared_errors, dim=0)
                 num_samples += X_batch.size(0)
@@ -211,9 +223,11 @@ class ModelA:
         mcrmse = torch.mean(root_mean_squared_errors).item()
         return mcrmse
 
-    def test(self, X_test, y_test, batch_size=DEFAULT_BATCH_SIZE) -> float:
+    def test(self, X_test, test_masks, y_test, batch_size=DEFAULT_BATCH_SIZE) -> float:
         """Test the model and return the MCRMSE."""
-        test_dataset = TensorDataset(X_test, torch.tensor(y_test, dtype=torch.float32))
+        test_dataset = TensorDataset(
+            X_test, test_masks, torch.tensor(y_test, dtype=torch.float32)
+        )
         test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
         return self.evaluate(test_loader)
 
@@ -309,7 +323,7 @@ class LSTMModel(nn.Module):
         logger.debug(self.lstm)
         logger.debug(self.linear)
 
-    def forward(self, x):
+    def forward(self, x, attention_mask=None):
         x = self.embedding(x)
         h0 = torch.zeros(self.num_layers, x.size(0), self.lstm.hidden_size).to(x.device)
         c0 = torch.zeros(self.num_layers, x.size(0), self.lstm.hidden_size).to(x.device)
@@ -342,8 +356,8 @@ class PretrainedModel(nn.Module):
         logger.debug(self.linear)
         logger.debug(self.pooling)
 
-    def forward(self, X):
-        outputs = self.backbone(X)
+    def forward(self, X, attention_mask=None):
+        outputs = self.backbone(X, attention_mask=attention_mask)
         hidden_state = outputs.last_hidden_state
 
         if self.pooling == "mean":

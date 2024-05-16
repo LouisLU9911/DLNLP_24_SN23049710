@@ -96,15 +96,24 @@ def data_preprocessing(workspace: Path, cfg: dict):
     )
 
     X_tokens = tokens["input_ids"]
+    attention_masks = tokens["attention_mask"]
 
     # Split data into train and remaining
     X_train, X_remaining, y_train, y_remaining = train_test_split(
         X_tokens, y, test_size=TEST_SIZE, random_state=random_state
     )
 
+    train_masks, remaining_masks = train_test_split(
+        attention_masks, test_size=TEST_SIZE, random_state=random_state
+    )
+
     # Split remaining into validation and test
     X_val, X_test, y_val, y_test = train_test_split(
         X_remaining, y_remaining, test_size=VAL_SIZE, random_state=random_state
+    )
+
+    val_masks, test_masks = train_test_split(
+        remaining_masks, test_size=VAL_SIZE, random_state=random_state
     )
 
     # log all
@@ -115,4 +124,15 @@ def data_preprocessing(workspace: Path, cfg: dict):
     logger.debug(f"{y_val.shape=}")
     logger.debug(f"{y_test.shape=}")
     logger.debug(f'max_length of tokenizer: {cfg["tokenizer"]["max_length"]}')
-    return X_train, X_val, X_test, y_train, y_val, y_test
+
+    return (
+        X_train,
+        train_masks,
+        X_val,
+        val_masks,
+        X_test,
+        test_masks,
+        y_train,
+        y_val,
+        y_test,
+    )

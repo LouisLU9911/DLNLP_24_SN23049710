@@ -69,7 +69,17 @@ def main():
         with open(A_CONFIG_PATH, "r") as f:
             cfg = json.load(f)
             logger.info(f"Read task A's config from {A_CONFIG_PATH} successfully!")
-        X_train, X_val, X_test, y_train, y_val, y_test = data_preprocessing(CWD, cfg)
+            (
+                X_train,
+                train_masks,
+                X_val,
+                val_masks,
+                X_test,
+                test_masks,
+                y_train,
+                y_val,
+                y_test,
+            ) = data_preprocessing(CWD, cfg)
 
         # ======================================================================================================================
         # only one task: Task A
@@ -83,8 +93,10 @@ def main():
         logger.debug(f"{lr=}")
         mcrmse_A_train = model_A.train(
             X_train=X_train,
-            y_train=y_train,
+            train_masks=train_masks,
             X_val=X_val,
+            val_masks=val_masks,
+            y_train=y_train,
             y_val=y_val,
             learning_rate=lr,
             batch_size=batch_size,
@@ -93,7 +105,7 @@ def main():
         # Save model
         model_A.save()
         mcrmse_A_test = model_A.test(
-            X_test=X_test, y_test=y_test, batch_size=batch_size
+            X_test=X_test, test_masks=test_masks, y_test=y_test, batch_size=batch_size
         )  # Test model based on the test set.
         # Clean up memory/GPU etc...
         model_A.clean()
