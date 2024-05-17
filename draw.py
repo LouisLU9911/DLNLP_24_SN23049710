@@ -33,10 +33,10 @@ for text in texts:
 print("Token lengths:", token_lengths)
 
 # Plot the histogram
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(6, 6))
 plt.hist(
     token_lengths,
-    bins=range(min(token_lengths), max(token_lengths) + 1, 1),
+    bins=range(min(token_lengths), max(token_lengths) + 1, 20),
     edgecolor="black",
 )
 plt.title("Histogram of Token Lengths (BERT Tokenizer)")
